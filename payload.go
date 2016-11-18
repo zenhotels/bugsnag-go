@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 )
 
 type payload struct {
@@ -13,6 +14,15 @@ type payload struct {
 }
 
 type hash map[string]interface{}
+
+var defaultClient = &http.Client{
+	Timeout: 30 * time.Second,
+	Transport: &http.Transport{
+		MaxIdleConns:          4096,
+		IdleConnTimeout:       30 * time.Second,
+		ResponseHeaderTimeout: 10 * time.Second,
+	},
+}
 
 func (p *payload) deliver() error {
 
@@ -26,10 +36,13 @@ func (p *payload) deliver() error {
 		return fmt.Errorf("bugsnag/payload.deliver: %v", err)
 	}
 
-	client := http.Client{
-		Transport: p.Transport,
+	client := defaultClient
+	if p.Transport != http.DefaultTransport {
+		client = &http.Client{
+			Timeout:   30 * time.Second,
+			Transport: p.Transport,
+		}
 	}
-
 	resp, err := client.Post(p.Endpoint, "application/json", bytes.NewBuffer(buf))
 
 	if err != nil {
